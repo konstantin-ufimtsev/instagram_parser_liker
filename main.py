@@ -82,13 +82,15 @@ class Instagram_Liker:
             chrome_options.add_argument(f'--user-agent={user_agent}')
         #chrome_options.add_argument("--headless=new")
         chrome_options.add_argument('--no-sandbox')
-        chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+        #chrome_options.add_argument("--disable-blink-features=AutomationControlled")
         chrome_options.add_argument("--log-level=3")
         mobile_emulation = {
         "userAgent": "Mozilla/5.0 (Linux; Android 4.2.1; en-us; Nexus 5 Build/JOP40D) AppleWebKit/535.19 (KHTML, like Gecko) Chrome/90.0.1025.166 Mobile Safari/535.19"}
         chrome_options.add_experimental_option("mobileEmulation", mobile_emulation)
         
         self.driver = webdriver.Chrome(options=chrome_options)
+        
+        """
         self.driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
         'source': '''
         delete window.cdc_adoQpoasnfa76pfcZLmcfl_Array;
@@ -96,9 +98,10 @@ class Instagram_Liker:
         delete window.cdc_adoQpoasnfa76pfcZLmcfl_Symbol;
         '''
         })
+        """
         log_config.logging.info('Драйвер получен')
         
-    def __authorization(self): #функция ыполняет авторизацию
+    def __authorization(self): #функция выполняет авторизацию
         self.driver.get(self.url)
         for cookie in pickle.load(open('session', "rb")):
             self.driver.add_cookie(cookie)
@@ -107,7 +110,7 @@ class Instagram_Liker:
         #pickle.dump(self.driver.get_cookies(), open('session', 'wb'))
         log_config.logging.info(f'URL {self.url} загружен')
         self.driver.refresh()
-        time.sleep(10)
+        time.sleep(random.randrange(1,3))
         
  
     def __get_urls(self):
@@ -140,25 +143,30 @@ class Instagram_Liker:
             log_config.logging.info('Кнопка ПОДПИСЧИКИ НЕ нажата')
             self.driver.close()
             Instagram_Liker(url='https://www.instagram.com/xudozhka39/').parse()
-        users = set()
-        existing_urls = self.__read_file()
-        while len(users) < NUMBER_OF_USERS: #пока количество собранных меньше указанноу число
-            log_config.logging.info(f'Собрано {len(users)} ссылок')
+        existing_urls:set = set()
+        while len(existing_urls) < NUMBER_OF_USERS: #пока количество собранных меньше указанноу число
+            currect_urls:set = set()
+            existing_urls:set = set(self.__read_file()) #считали существующий список из файла и преобразовали в множество
+            log_config.logging.info(f'Считано из файла {len(existing_urls)} ссылок')
             try:
                 followers = self.driver.find_elements(By.XPATH, "//a[contains(@href, '/')]")
                 for i in followers:
-                    if i.get_attribute("href") and (i.get_attribute("href") not in except_list) and (i.get_attribute("href") not in existing_urls):
-                        users.add(i.get_attribute("href"))
+                    if i.get_attribute("href") and (i.get_attribute("href") not in except_list):
+                        currect_urls.add(i.get_attribute("href"))
+                        self.__write_file(list(existing_urls.union(currect_urls))) #к существующему множеству ссылок из файла добавляем множество считанное из файлов и пишем в вмиде спика в файл
                     else:
                         continue
+                log_config.logging.info(f'В файл записано {len(list(existing_urls.union(currect_urls)))} ссылок')
                 ActionChains(self.driver).send_keys(Keys.END).perform()
-                time.sleep(1)
- 
+                time.sleep(random.randrange(1,3))
+
             except Exception as ex:
                 log_config.logging.info(f'Ошибка при парсинге.. {ex}')
-                self.__write_file(list(users)) #запись в файл в случае ошибки
-                break
-        self.__write_file(list(users)) #заспись в файл после окончания парсинга
+                self.__write_file(list(list(existing_urls.union(currect_urls)))) #запись в файл в случае ошибки
+                #self.driver.close()
+                Instagram_Liker(url='https://www.instagram.com/xudozhka39/').parse()
+        else:
+            self.__write_file(list(existing_urls.union(currect_urls))) #заспись в файл после окончания парсинга
                 
         
 
@@ -169,7 +177,7 @@ class Instagram_Liker:
                     for line in file:
                         url_list.append(line.rstrip())
                         
-                log_config.logging.info('Чтение списка существующих ссылко успешно')
+                #log_config.logging.info('Чтение списка существующих ссылко успешно')
                 return url_list
             except Exception as ex:
                 log_config.logging.info(f'Ошибка чтения списка суествующих файлов - {ex}')
@@ -177,10 +185,10 @@ class Instagram_Liker:
 
     def __write_file(self, new_urls:list, filename = 'urls.txt'): #функция записи в файл, где хранятся все пролайканные посты - получает список, добавляет элементы построчно
         try:
-            with open(filename, 'a', encoding='utf-8') as file:
+            with open(filename, 'w', encoding='utf-8') as file:
                 for line in new_urls:
                     file.write(line + '\n')
-            log_config.logging.info('Успешная запись в файл urls.txt')
+            #log_config.logging.info('Успешная запись в файл urls.txt')
         except Exception as ex:
             log_config.logging.info('Ошибка записи в файл urls.txt')
 
